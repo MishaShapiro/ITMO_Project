@@ -379,9 +379,9 @@ class Elements(Commands):
         self.file_menu.add_command(label="Выход", command=lambda: self.root.destroy())
         self.command_menu.add_command(label="Добавить транспорт", command=super().Add_Element)
         self.command_menu.add_command(label="Удалить транспорт", command=super().Delete_Element)
-        self.command_menu.add_command(label="Отсортировать таблицу", command="")
+        self.command_menu.add_command(label="Отсортировать таблицу", command=super().Sort_Table)
         self.info_menu.add_command(label="Больше информации", command=super().More_Information)
-        self.info_menu.add_command(label="Составить заявку", command="")
+        self.info_menu.add_command(label="Составить заявку", command=super().Add_Report)
         self.info_menu.add_command(label="Больше о программе", command=super().Info)
         self.info_menu.add_cascade(label="Инструменты разработчика", menu=self.devtools_menu)
 
