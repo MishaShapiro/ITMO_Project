@@ -101,16 +101,18 @@ class Figurs(ABC):  # Класс всех фигур на доске
     def can_move(self, mass):  # Метод для нахождения вариантов хода
         for i in desk._figurs:  # приравнивание всех атрибутов выбора на False
             i._chosen = False
-        mass._remover()  # метод удаляющий невозможные ходы
+        mass._remover(self)  # метод удаляющий невозможные ходы
         self._moves = mass._move  # обновление атрибута фигуры
         desk._all_moves = mass._move  # добавление в атрибут доски все видимые пути
         self._chosen = True
         desk._upload()
 
     def move_to(self, x, y):
-        y_dict = {"A": 0, "B": 1, "C": 2, "D": 3, "E": 4, "F": 5, "G": 6, "H": 7}
-        x = x - 1
-        y = y_dict[y]
+        # Часть кода для вызова из файла Test.py (Сейчас не нужна)
+        # y_dict = {"A": 0, "B": 1, "C": 2, "D": 3, "E": 4, "F": 5, "G": 6, "H": 7}
+        # x = x - 1
+        # y = y_dict[y]
+        # ________________________________________________________________
         if (x, y) in desk._all_moves:
             self._start_position = (x, y)
             self._x = x
@@ -121,8 +123,20 @@ class Figurs(ABC):  # Класс всех фигур на доске
             except ChessDeskError as ChD:
                 print(ChD)
 
-        desk._upload()
         desk._all_moves = []
+        new_mass = desk._figurs[::]
+        for i in desk._figurs:
+            if i._attacked and self._start_position == i._start_position:
+                if i._name == "K": # Проверка на съедение короля (Окончание игры)
+                    if i._color == "White":
+                        desk._Winner = "Black"
+                    else:
+                        desk._Winner = "White"
+                new_mass.remove(i)
+            else:
+                i._attacked = False
+        desk._figurs = new_mass[::]
+        desk._upload()
 
     @abstractmethod
     def get_name(self, name):
@@ -146,7 +160,6 @@ class Figurs(ABC):  # Класс всех фигур на доске
 
         print(function_1(name), function_2((self._x + 1, y_de_dict[self._y])))
 
-
 class _Desk:  # класс шахматной доски
 
     def __init__(self, figurs):
@@ -158,6 +171,7 @@ class _Desk:  # класс шахматной доски
             self._dicter[i._start_position] = i
             position_in_desk.append(i._start_position)
         self._position_in_desk = position_in_desk  # создание атрибута с таким массивом
+        self._Winner = ""
 
     def create_table(self, figurs): # Метод для добавления фигур на доску в другом файле
         self._dicter = {}  # словарь с ключами: стартовыми позициями, значениями: фигурами
@@ -178,6 +192,8 @@ class _Desk:  # класс шахматной доски
         self._position_in_desk = position_in_desk
 
     def draw_desk(self):  # отрисовка доски
+        current_figur_coor = "White" # Переменная, кооторая показывает, какого цвета фигуры ходят
+
         # стандартный вызов окна pygame
 
         pixels = 60
@@ -198,7 +214,6 @@ class _Desk:  # класс шахматной доски
         text1 = f1.render('A B C D E F G H', True, (0, 0, 0))
 
         running = 1
-
         # запуск программы
 
         while running:
@@ -206,13 +221,37 @@ class _Desk:  # класс шахматной доски
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = 0
+                if event.type == pygame.MOUSEBUTTONDOWN and self._Winner == "": # Проверка на нажатие фигуры
+                    stoped = False
+                    for i in self._figurs: # Проход по всем фигурам на доске
+                        if i._color == current_figur_coor: # Проверяет, чтоб фигура по цвету соответствовала ходу
+                            if i._start_position[0] == (event.pos[1] - 100)//60 and i._start_position[1] == (event.pos[0] - 100)//60: # Если нажатие произошло на фигуру (Подсчёт координат)
+                                if self._all_moves == i._moves and self._all_moves != []: # При повторном нажатии выводится информация о фигуре
+                                    i.get_name()
+                                i.can_move()
+                            if self._all_moves == i._moves: # Находится фигура, которая сейчас выбрана
+                                for j in set(i._moves): # Проходимся по всем ходам фигуры
+                                    if j[0] == (event.pos[1] - 100)//60 and j[1] == (event.pos[0] - 100)//60: # Если было нажатие на ход выбранной фигуры, то фигура перемещается
+                                        i.move_to(j[0], j[1])
+                                        time.sleep(0.1)
+                                        if current_figur_coor == "White":
+                                            current_figur_coor = "Black"
+                                        else:
+                                            current_figur_coor = "White"
+                                        stoped = True # переменная, которая остановит перебор по фигурам (Так как могут случайно захватиться съеденные фигуры)
+                                        break
+                        if stoped:
+                            break
+
             screen.fill((200, 200, 200))
             for i in range(0, 8):  # проход по всем клеткам доски и их отрисовка в зависимости от параметров
                 for j in range(0, 8):
                     if (i, j) in self._dicter.keys():  # на этой клетке стоит фигура
                         color_fig = self._dicter[(i, j)]._color
+                        if self._dicter[(i, j)]._attacked:
+                            color_fig = "Red"
                         sym = self._dicter[(i, j)]._name
-                        if color_fig == "Black":
+                        if color_fig == "Black" or color_fig == "Red":
                             color_sym = "White"
                         else:
                             color_sym = "Black"
@@ -221,8 +260,7 @@ class _Desk:  # класс шахматной доски
                             screen.blit(f2.render(sym, True, color_sym), (115 + j * pixels, 110 + i * pixels))
                         else:
                             screen.blit(f2.render(sym, True, color_sym), (100 + j * pixels, 110 + i * pixels))
-                    elif (i,
-                          j) in self._all_moves:  # при вызове метода can_move фигура берётся в руку ==> показываются все ходы фигуры
+                    elif (i, j) in self._all_moves:  # при вызове метода can_move фигура берётся в руку ==> показываются все ходы фигуры
                         pygame.draw.rect(screen, (255, 230, 0), (100 + j * pixels, 100 + i * pixels, pixels, pixels))
                     elif (i + j) % 2 == 0:
                         pygame.draw.rect(screen, (156, 156, 156), (100 + j * pixels, 100 + i * pixels, pixels, pixels))
@@ -238,7 +276,18 @@ class _Desk:  # класс шахматной доски
             for i in "12345678":
                 text2 = f1.render(i, True, (0, 0, 0))
                 screen.blit(text2, (30, 60 * int(i) + 40))
+            # Отрисовка оповещения о победе
+            if self._Winner == "White":
+                pygame.draw.rect(screen, (128, 128, 128), (90, 180, 550, 100))
+                winner_text = f1.render("Белые победили!", True, (93, 20, 122))
+                screen.blit(winner_text, (100, 200))
+            if self._Winner == "Black":
+                pygame.draw.rect(screen, (128, 128, 128), (70, 180, 590, 100))
+                winner_text = f1.render("Чёрные победили!", True, (93, 20, 122))
+                screen.blit(winner_text, (80, 200))
+                
             pygame.display.flip()
+
 
         pygame.quit()
 
@@ -248,10 +297,13 @@ class Positions(_Desk):  # дочерний класс позиций на до�
         super(Positions, self).__init__(desk._figurs)
         self._move = move  # создание атрибута со всеми путями для определённой фигуры
 
-    def _remover(self):  # метод удаления всех невозможных ходов
+    def _remover(self, current_fig):  # метод удаления всех невозможных ходов
         new_move = []
         for i in self._move:
-            if i[0] >= 0 and i[1] >= 0 and i[0] <= 7 and i[1] <= 7 and not (i in self._position_in_desk):
+            if i[0] >= 0 and i[1] >= 0 and i[0] <= 7 and i[1] <= 7: # and not (i in self._position_in_desk):
+                for fig in self._figurs: # Нахождение фигуры, которая может быть атакована
+                    if fig._start_position == i and fig._color != current_fig._color: # проверка на правильную позицию и цвет фигуры
+                        fig._attacked = True
                 new_move.append(i)
         self._move = new_move
 
@@ -311,6 +363,11 @@ class Eleph(Figurs):
     def can_move(self):
         # удаляет все возможные перепрыгивания через фигуры
         pit = desk._position_in_desk  # все фигуры на доске
+        # def find_other_color(x, y): # Поиск позиций, где фигура может съесть другую
+        #     for i in desk._figurs:
+        #         if (x, y) == i._start_position and i._color != self._color:
+        #             return [(x, y)]
+        #     return []
         res1 = []
         res2 = []
         x, y = self._x, self._y
@@ -319,16 +376,21 @@ class Eleph(Figurs):
             if 0 <= x + i <= 7 and 0 <= y + i <= 7 and i != 0:
                 res1.append((x + i, y + i))
                 if i < 0 and (x + i, y + i) in pit:
-                    res1 = []
+                    # res1 = find_other_color(x + i, y + i) # Добавление позиций, когда фигцра может съесть другую
+                    res1 = [(x + i, y + i)]
                 if i > 0 and (x + i, y + i) in pit:
+                    # res1 += find_other_color(x + i, y + i) # Добавление позиций, когда фигцра может съесть другую
+                    res1.append((x + i, y + i))
                     break
         # прохождение по другой диагонали и удаление всех перепрыгивний
         for i in range(-7, 8):
             if 0 <= x + i <= 7 and 0 <= y - i <= 7 and i != 0:
                 res2.append((x + i, y - i))
                 if i < 0 and (x + i, y - i) in pit:
-                    res2 = []
+                    # res2 = find_other_color(x + i, y - i)
+                    res2 = [(x + i, y - i)]
                 if i > 0 and (x + i, y - i) in pit:
+                    res2.append((x + i, y - i))
                     break
         mass = Positions(res1 + res2)
         super(Eleph, self).can_move(mass)
@@ -345,6 +407,11 @@ class Ladia(Figurs):
 
     def can_move(self):
         # Аналогично, как у слона, только другой направление
+        def find_other_color(x, y):
+            for i in desk._figurs:
+                if (x, y) == i._start_position and i._color != self._color:
+                    return [(x, y)]
+            return []
         pit = desk._position_in_desk
         res1 = []
         res2 = []
@@ -353,15 +420,17 @@ class Ladia(Figurs):
             if 0 <= x + i <= 7 and i != 0:
                 res1.append((x + i, y))
             if i < 0 and (x + i, y) in pit:
-                res1 = []
+                res1 = [(x + i, y)]
             if i > 0 and (x + i, y) in pit:
+                res1.append((x + i, y))
                 break
         for i in range(-7, 8):
             if 0 <= y + i <= 7 and i != 0:
                 res2.append((x, y + i))
             if i < 0 and (x, y + i) in pit:
-                res2 = []
+                res2 = [(x, y + i)]
             if i > 0 and (x, y + i) in pit:
+                res2.append((x, y + i))
                 break
 
         mass = Positions(res1 + res2)
@@ -396,7 +465,7 @@ class Ferz(Figurs):
             else:
                 self.ladia = fig
 
-            print(fig._moves, fig._name)
+            # print(fig._moves, fig._name)
 
         th1 = Thread(target=figure_creating, args=(self.eleph, self._x, self._y, ))
         th2 = Thread(target=figure_creating, args=(self.ladia, self._x, self._y, ))
