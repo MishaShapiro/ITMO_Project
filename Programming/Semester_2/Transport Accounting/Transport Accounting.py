@@ -93,14 +93,17 @@ class Commands: # Класс со всеми командами
         try: # Проверка на корректно введённые данные
             mass = [self.Add_Entry1.get(), float(self.Add_Entry2.get()), float(self.Add_Entry3.get()), float(self.Add_Entry4.get()), float(self.Add_Entry5.get())]
             if self.Add_Entry1.get() != "":
-                self.data.Input(mass, "all_transport") # Добавление в БД
-                self.data.Commit_Table() # Commit БД
-                self.Upload_Table(self.data.Output("all_transport"), self.table) # Обновление таблицы
-                self.Back_Button_Action() # Возврат в главное окно
+                if mass[1] <= 0 or mass[2] <= 0 or mass[3] <= 0 or mass[4] <= 0:
+                    raise IndexError
+                else:
+                    self.data.Input(mass, "all_transport") # Добавление в БД
+                    self.data.Commit_Table() # Commit БД
+                    self.Upload_Table(self.data.Output("all_transport"), self.table) # Обновление таблицы
+                    self.Back_Button_Action() # Возврат в главное окно
             else:
                 messagebox.showerror("Ошибка!", "Заполните все ячейки корректно!")
         except:
-            messagebox.showerror("Ошибка!", "Заполните все ячейки корректно! Грузоподьёмность, длина, ширина и высота должны быть заданы числовыми значениями!")
+            messagebox.showerror("Ошибка!", "Заполните все ячейки корректно! Грузоподьёмность, длина, ширина и высота должны быть заданы положительными числовыми значениями!")
 
     def Delete_Information_From_Table(self): # Удаление элемента главной таблицы по ID
         try:
